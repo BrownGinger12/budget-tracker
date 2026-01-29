@@ -1,34 +1,21 @@
-import React, { useState } from "react";
+// src/pages/TrackingPage.tsx
+import React, { useState, useEffect } from "react";
+import { Plus, Trash2, TrendingDown, TrendingUp, Wallet } from "lucide-react";
+import { useAuth } from "../context/authContext";
+import { Expense, EXPENSE_CATEGORIES } from "../types/types";
 import {
-  PiggyBank,
-  Plus,
-  Trash2,
-  TrendingDown,
-  TrendingUp,
-  Wallet,
-} from "lucide-react";
-
-interface Expense {
-  id: string;
-  description: string;
-  amount: number;
-  category: string;
-  date: string;
-}
-
-const EXPENSE_CATEGORIES = [
-  "Transportation",
-  "Food",
-  "Utilities",
-  "Healthcare",
-  "Education",
-  "Entertainment",
-  "Housing",
-  "Others",
-];
+  addExpense,
+  deleteExpense,
+  getBudget,
+  getExpenses,
+  setBudget,
+  updateBudget,
+} from "../firebase/firebaseServices";
 
 const TrackingPage: React.FC = () => {
-  const [budget, setBudget] = useState<number>(0);
+  const { currentUser } = useAuth();
+  const [budget, setBudgetState] = useState<number>(0);
+  const [budgetId, setBudgetId] = useState<string | null>(null);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [showBudgetModal, setShowBudgetModal] = useState<boolean>(false);
   const [showExpenseModal, setShowExpenseModal] = useState<boolean>(false);
@@ -36,6 +23,9 @@ const TrackingPage: React.FC = () => {
   const [expenseDescription, setExpenseDescription] = useState<string>("");
   const [expenseAmount, setExpenseAmount] = useState<string>("");
   const [expenseCategory, setExpenseCategory] = useState<string>("Food");
+  const [loading, setLoading] = useState<boolean>(true);
+
+  const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM format
 
   const totalExpenses = expenses.reduce(
     (sum, expense) => sum + expense.amount,
@@ -44,25 +34,86 @@ const TrackingPage: React.FC = () => {
   const remaining = budget - totalExpenses;
   const percentageUsed = budget > 0 ? (totalExpenses / budget) * 100 : 0;
 
-  const handleSetBudget = () => {
-    const amount = parseFloat(budgetInput);
-    if (!isNaN(amount) && amount > 0) {
-      setBudget(amount);
-      setBudgetInput("");
-      setShowBudgetModal(false);
+  useEffect(() => {
+    fetchData();
+  }, [currentUser]);
+
+  const fetchData = async () => {
+    if (!currentUser) return;
+
+    setLoading(true);
+    try {
+      // Fetch budget
+      const budgetData = await getBudget(currentUser.uid, currentMonth);
+      if (budgetData) {
+        setBudgetState(budgetData.amount);
+        setBudgetId(budgetData.id);
+      }
+
+      // Fetch expenses
+      const expensesData = await getExpenses(currentUser.uid);
+      setExpenses(expensesData);
+    } catch (error) {
+      console.error("Error fetching data:", error);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleAddBudget = () => {
+  const handleSetBudget = async () => {
+    if (!currentUser) return;
+
     const amount = parseFloat(budgetInput);
     if (!isNaN(amount) && amount > 0) {
-      setBudget(budget + amount);
-      setBudgetInput("");
-      setShowBudgetModal(false);
+      try {
+        if (budgetId) {
+          await updateBudget(budgetId, amount);
+        } else {
+          const newBudgetId = await setBudget(
+            currentUser.uid,
+            amount,
+            currentMonth,
+          );
+          setBudgetId(newBudgetId);
+        }
+        setBudgetState(amount);
+        setBudgetInput("");
+        setShowBudgetModal(false);
+      } catch (error) {
+        console.error("Error setting budget:", error);
+      }
     }
   };
 
-  const handleAddExpense = () => {
+  const handleAddBudget = async () => {
+    if (!currentUser) return;
+
+    const amount = parseFloat(budgetInput);
+    if (!isNaN(amount) && amount > 0) {
+      try {
+        const newAmount = budget + amount;
+        if (budgetId) {
+          await updateBudget(budgetId, newAmount);
+        } else {
+          const newBudgetId = await setBudget(
+            currentUser.uid,
+            newAmount,
+            currentMonth,
+          );
+          setBudgetId(newBudgetId);
+        }
+        setBudgetState(newAmount);
+        setBudgetInput("");
+        setShowBudgetModal(false);
+      } catch (error) {
+        console.error("Error adding to budget:", error);
+      }
+    }
+  };
+
+  const handleAddExpense = async () => {
+    if (!currentUser) return;
+
     const amount = parseFloat(expenseAmount);
     if (
       expenseDescription.trim() &&
@@ -70,28 +121,49 @@ const TrackingPage: React.FC = () => {
       amount > 0 &&
       expenseCategory
     ) {
-      const newExpense: Expense = {
-        id: Date.now().toString(),
-        description: expenseDescription,
-        amount: amount,
-        category: expenseCategory,
-        date: new Date().toLocaleDateString(),
-      };
-      setExpenses([newExpense, ...expenses]);
-      setExpenseDescription("");
-      setExpenseAmount("");
-      setExpenseCategory("Food");
-      setShowExpenseModal(false);
+      try {
+        const newExpense = {
+          description: expenseDescription,
+          amount,
+          category: expenseCategory,
+          date: new Date().toISOString().split("T")[0],
+        };
+
+        await addExpense(currentUser.uid, newExpense);
+
+        // Refresh expenses
+        await fetchData();
+
+        setExpenseDescription("");
+        setExpenseAmount("");
+        setExpenseCategory("Food");
+        setShowExpenseModal(false);
+      } catch (error) {
+        console.error("Error adding expense:", error);
+      }
     }
   };
 
-  const handleDeleteExpense = (id: string) => {
-    setExpenses(expenses.filter((expense) => expense.id !== id));
+  const handleDeleteExpense = async (id: string) => {
+    try {
+      await deleteExpense(id);
+      await fetchData();
+    } catch (error) {
+      console.error("Error deleting expense:", error);
+    }
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-full bg-gradient-to-b from-blue-50 to-white p-6 flex items-center justify-center">
+        <div className="text-xl text-gray-600">Loading...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-full bg-gradient-to-b from-blue-50 to-white p-6">
-      <div className="w-full mx-auto">
+      <div className="max-w-full mx-auto">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-800 mb-2">
             Budget Tracking
@@ -101,11 +173,12 @@ const TrackingPage: React.FC = () => {
           </p>
         </div>
 
+        {/* Budget Overview Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <div className="bg-white rounded-xl shadow-md p-6 border-l-4 border-blue-500">
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-gray-600 font-medium">Total Budget</h3>
-              <PiggyBank className="w-6 h-6 text-blue-500" />
+              <Wallet className="w-6 h-6 text-blue-500" />
             </div>
             <p className="text-3xl font-bold text-gray-800">
               ₱{budget.toFixed(2)}
@@ -115,7 +188,7 @@ const TrackingPage: React.FC = () => {
           <div className="bg-white rounded-xl shadow-md p-6 border-l-4 border-red-500">
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-gray-600 font-medium">Total Expenses</h3>
-              <TrendingUp className="w-6 h-6 text-red-500" />
+              <TrendingDown className="w-6 h-6 text-red-500" />
             </div>
             <p className="text-3xl font-bold text-gray-800">
               ₱{totalExpenses.toFixed(2)}
@@ -139,6 +212,7 @@ const TrackingPage: React.FC = () => {
           </div>
         </div>
 
+        {/* Progress Bar */}
         {budget > 0 && (
           <div className="bg-white rounded-xl shadow-md p-6 mb-8">
             <div className="flex items-center justify-between mb-2">
@@ -162,21 +236,25 @@ const TrackingPage: React.FC = () => {
           </div>
         )}
 
+        {/* Action Buttons */}
         <div className="flex gap-4 mb-8">
           <button
             onClick={() => setShowBudgetModal(true)}
             className="flex-1 bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 px-6 rounded-lg shadow-md transition-colors duration-200 flex items-center justify-center space-x-2"
           >
+            <Plus className="w-5 h-5" />
             <span>Set/Add Budget</span>
           </button>
           <button
             onClick={() => setShowExpenseModal(true)}
             className="flex-1 bg-gradient-to-r from-yellow-400 to-yellow-500 hover:from-yellow-500 hover:to-yellow-600 text-white font-semibold py-3 px-6 rounded-lg shadow-md transition-all duration-200 flex items-center justify-center space-x-2"
           >
+            <Plus className="w-5 h-5" />
             <span>Add Expense</span>
           </button>
         </div>
 
+        {/* Expenses List */}
         <div className="bg-white rounded-xl shadow-md p-6">
           <h2 className="text-xl font-bold text-gray-800 mb-4">
             Recent Expenses
@@ -213,7 +291,7 @@ const TrackingPage: React.FC = () => {
                       onClick={() => handleDeleteExpense(expense.id)}
                       className="p-2 text-red-500 hover:bg-red-100 rounded-lg transition-colors duration-200"
                     >
-                      ×
+                      <Trash2 className="w-5 h-5" />
                     </button>
                   </div>
                 </div>
@@ -222,6 +300,7 @@ const TrackingPage: React.FC = () => {
           )}
         </div>
 
+        {/* Budget Modal */}
         {showBudgetModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
             <div className="bg-white rounded-xl shadow-xl p-6 max-w-md w-full">
@@ -262,6 +341,7 @@ const TrackingPage: React.FC = () => {
           </div>
         )}
 
+        {/* Expense Modal */}
         {showExpenseModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
             <div className="bg-white rounded-xl shadow-xl p-6 max-w-md w-full">

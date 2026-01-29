@@ -1,44 +1,64 @@
-import { Sidebar } from "lucide-react";
-import Navbar from "../components/navBar";
+// src/MainPage.tsx
+import React, { useState } from "react";
+import ProfilePage from "./profilePage";
+import SettingsPage from "./settingsPage";
 import TrackingPage from "./trackingPage";
-import { useState } from "react";
-import ProfileSidebar from "../components/sideBar";
+import DashboardPage from "./dashboardPage";
 import SavingsPage from "./savingsPage";
 import HistoryPage from "./historyPage";
+import Navbar from "../components/navBar";
+import Sidebar from "../components/sideBar";
 
 const MainPage: React.FC = () => {
   const [activePage, setActivePage] = useState<string>("dashboard");
+  const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(false);
+
+
+  const toggleSidebar = () => {
+    setIsSidebarOpen(!isSidebarOpen);
+  };
+
+  const closeSidebar = () => {
+    setIsSidebarOpen(false);
+  };
+
+  const handlePageChange = (page: string) => {
+    setActivePage(page);
+    setIsSidebarOpen(false);
+  };
 
   const renderPage = () => {
     switch (activePage) {
+      case "profile":
+        return <ProfilePage />;
+      case "settings":
+        return <SettingsPage />;
       case "tracking":
         return <TrackingPage />;
       case "dashboard":
-        return (
-          <div className="p-6">
-            <h1 className="text-3xl font-bold text-gray-800 mb-2">Dashboard</h1>
-            <p className="text-gray-600">Dashboard page coming soon...</p>
-          </div>
-        );
+        return <DashboardPage />;
       case "savings":
         return <SavingsPage />;
       case "history":
         return <HistoryPage />;
       default:
-        return (
-          <div className="p-6">
-            <h1 className="text-3xl font-bold text-gray-800 mb-2">Dashboard</h1>
-            <p className="text-gray-600">Dashboard page coming soon...</p>
-          </div>
-        );
+        return <DashboardPage />;
     }
   };
 
   return (
-    <div className="w-full h-screen flex flex-col">
-      <Navbar activePage={activePage} setActivePage={setActivePage} />
+    <div className="w-full h-screen flex flex-col overflow-hidden">
+      <Navbar
+        activePage={activePage}
+        setActivePage={handlePageChange}
+        toggleSidebar={toggleSidebar}
+      />
       <div className="flex flex-1 overflow-hidden">
-        <ProfileSidebar />
+        <Sidebar
+          isOpen={isSidebarOpen}
+          onClose={closeSidebar}
+          setActivePage={handlePageChange}
+        />
         <main className="flex-1 overflow-auto bg-gradient-to-b from-blue-50 to-white">
           {renderPage()}
         </main>
