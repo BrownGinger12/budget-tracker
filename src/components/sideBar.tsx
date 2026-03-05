@@ -110,7 +110,6 @@ const Sidebar: React.FC<SidebarProps> = ({
                     <p className="text-sm opacity-90">Day Streak</p>
                   </div>
                 </div>
-                <ChevronRight className="w-5 h-5 text-white opacity-70" />
               </div>
             </div>
 

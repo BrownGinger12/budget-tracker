@@ -13,7 +13,7 @@ import {
 } from "../firebase/firebaseServices";
 
 const TrackingPage: React.FC = () => {
-  const { currentUser } = useAuth();
+  const { currentUser, recordActivity } = useAuth();
   const [budget, setBudgetState] = useState<number>(0);
   const [budgetId, setBudgetId] = useState<string | null>(null);
   const [expenses, setExpenses] = useState<Expense[]>([]);
@@ -79,6 +79,9 @@ const TrackingPage: React.FC = () => {
         setBudgetState(amount);
         setBudgetInput("");
         setShowBudgetModal(false);
+
+        // Record activity to update streak
+        await recordActivity();
       } catch (error) {
         console.error("Error setting budget:", error);
       }
@@ -105,6 +108,9 @@ const TrackingPage: React.FC = () => {
         setBudgetState(newAmount);
         setBudgetInput("");
         setShowBudgetModal(false);
+
+        // Record activity to update streak
+        await recordActivity();
       } catch (error) {
         console.error("Error adding to budget:", error);
       }
@@ -131,6 +137,9 @@ const TrackingPage: React.FC = () => {
 
         await addExpense(currentUser.uid, newExpense);
 
+        // Record activity to update streak
+        await recordActivity();
+
         // Refresh expenses
         await fetchData();
 
@@ -147,6 +156,10 @@ const TrackingPage: React.FC = () => {
   const handleDeleteExpense = async (id: string) => {
     try {
       await deleteExpense(id);
+
+      // Record activity to update streak
+      await recordActivity();
+
       await fetchData();
     } catch (error) {
       console.error("Error deleting expense:", error);

@@ -13,7 +13,6 @@ const MainPage: React.FC = () => {
   const [activePage, setActivePage] = useState<string>("dashboard");
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(false);
 
-
   const toggleSidebar = () => {
     setIsSidebarOpen(!isSidebarOpen);
   };

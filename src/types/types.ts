@@ -9,6 +9,7 @@ export interface UserProfile {
   streak: number;
   avatarUrl: string | null;
   createdAt: Date;
+  lastActivityDate: Date | null;
 }
 
 export interface NavItem {

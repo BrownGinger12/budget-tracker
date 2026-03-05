@@ -1,12 +1,6 @@
 // src/components/Navbar.tsx
 import React, { useState } from "react";
-import {
-  LayoutDashboard,
-  TrendingUp,
-  PiggyBank,
-  Bell,
-  LogOut,
-} from "lucide-react";
+import { LogOut } from "lucide-react";
 import { NavItem } from "../types/types";
 import { useAuth } from "../context/authContext";
 
@@ -27,20 +21,24 @@ const Navbar: React.FC<NavbarProps> = ({
   const navItems: NavItem[] = [
     {
       name: "Dashboard",
-      icon: <LayoutDashboard className="w-5 h-5" />,
+      icon: <img src="owl.png" className="w-10 h-10" />,
       path: "dashboard",
     },
     {
       name: "Tracking",
-      icon: <TrendingUp className="w-5 h-5" />,
+      icon: <img src="duck.png" className="w-10 h-10" />,
       path: "tracking",
     },
     {
       name: "Savings",
-      icon: <PiggyBank className="w-5 h-5" />,
+      icon: <img src="pig.png" className="w-10 h-10" />,
       path: "savings",
     },
-    { name: "History", icon: <Bell className="w-5 h-5" />, path: "history" },
+    {
+      name: "History",
+      icon: <img src="fox.png" className="w-10 h-10a" />,
+      path: "history",
+    },
   ];
 
   const handleNavClick = (path: string) => {
